@@ -1,0 +1,64 @@
+services:
+    nginx:
+        container_name: nginx_service # reserved name for cron
+        image: docker.io/bitnami/nginx:latest
+        privileged: true
+        command: [/opt/bitnami/scripts/nginx/run.sh]
+        ports:
+            - "80:8080"
+            - "443:8443"
+        environment:
+            - NGINX_ENABLE_ABSOLUTE_REDIRECT=yes
+            - NGINX_ENABLE_PORT_IN_REDIRECT=yes
+            - NGINX_HOST=127.0.0.1
+            - NGINX_PORT=8080
+        volumes:
+            - /home/bitnami/scripts:/opt/bitnami/scripts:ro
+            - /home/bitnami/nginx/conf:/opt/bitnami/nginx/conf:rw
+            - /home/bitnami/nginx/logs:/opt/bitnami/nginx/logs:rw
+            - /home/bitnami/nginx/modules:/opt/bitnami/nginx/modules:rw
+            - /home/bitnami/nginx/html:/opt/bitnami/nginx/html:ro
+            - /home/bitnami/nginx/vhosts:/bitnami/nginx/conf/vhosts:ro
+        healthcheck:
+            test: ["CMD", "exec", "/opt/bitnami/scripts/nginx/status.sh"]   # ["CMD", "curl", "-f", "http://localhost"]
+            interval: 1m30s
+            timeout: 10s
+            retries: 3
+            start_period: 1m30s
+        restart: always
+    mariadb:
+        container_name: mariadb_service # reserved name for cron
+        image: docker.io/bitnami/mariadb:latest
+        privileged: true
+        # command: '--default-authentication-plugin=mysql_native_password'
+        command: [/opt/bitnami/scripts/mariadb/run.sh]
+        ports:
+            - "3306:3306"
+        secrets:
+            - mysql_root_password
+            - mysql_user
+            - mysql_password
+        environment:
+            - MARIADB_HOST=127.0.0.1
+            - MARIADB_ROOT_PASSWORD=$(cat /run/secrets/mysql_root_password)
+            - MARIADB_DATABASE=wagtail
+            - MARIADB_USER=$(cat /run/secrets/mysql_user)
+            - MARIADB_PASSWORD=$(cat /run/secrets/mysql_password)
+        volumes:
+            - /home/bitnami/scripts:/opt/bitnami/scripts:ro
+            - /home/bitnami/mariadb/conf:/opt/bitnami/mariadb/conf:rw
+            - /home/bitnami/mariadb/logs:/opt/bitnami/mariadb/logs:rw
+            - /home/bitnami/database:/bitnami/mariadb:rw
+        healthcheck:
+            test: ["CMD", "exec", "/opt/bitnami/scripts/mariadb/healthcheck.sh"]   # ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 --user="$(cat /run/secrets/mysql_user)" --password="$(cat /run/secrets/mysql_password)" --silent']
+            interval: 3s
+            retries: 5
+            start_period: 30s
+        restart: always
+secrets:
+    mysql_root_password:
+        file: ./mysql_root_password.txt
+    mysql_user:
+        file: ./mysql_user.txt
+    mysql_password:
+        file: ./mysql_password.txt
