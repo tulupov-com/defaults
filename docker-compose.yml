@@ -5,18 +5,16 @@ services:
         privileged: true
         command: [/opt/bitnami/scripts/nginx/run.sh]
         ports:
-            - "80:8080"
-            - "443:8443"
+            - 80:8080
+            - 443:8443
         environment:
             - NGINX_ENABLE_ABSOLUTE_REDIRECT=yes
             - NGINX_ENABLE_PORT_IN_REDIRECT=yes
-            - NGINX_HOST=127.0.0.1
-            - NGINX_PORT=8080
         volumes:
             - /home/bitnami/scripts:/opt/bitnami/scripts:ro
             - /home/bitnami/nginx/conf:/opt/bitnami/nginx/conf:rw
             - /home/bitnami/nginx/logs:/opt/bitnami/nginx/logs:rw
-            - /home/bitnami/nginx/modules:/opt/bitnami/nginx/modules:rw
+            - /home/bitnami/nginx/modules:/opt/bitnami/nginx/modules:ro
             - /home/bitnami/nginx/html:/opt/bitnami/nginx/html:ro
             - /home/bitnami/nginx/vhosts:/bitnami/nginx/conf/vhosts:ro
         healthcheck:
@@ -30,31 +28,100 @@ services:
         container_name: mariadb_service # reserved name for cron
         image: docker.io/bitnami/mariadb:latest
         privileged: true
-        # command: '--default-authentication-plugin=mysql_native_password'
+        command: --default-authentication-plugin=mysql_native_password
         command: [/opt/bitnami/scripts/mariadb/run.sh]
         ports:
-            - "3306:3306"
+            - 3306:3306
+        networks:
+            - mariadb-tier
         secrets:
             - mysql_root_password
             - mysql_user
             - mysql_password
         environment:
-            - MARIADB_HOST=127.0.0.1
-            - MARIADB_ROOT_PASSWORD=$(cat /run/secrets/mysql_root_password)
+            - MARIADB_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password
             - MARIADB_DATABASE=wagtail
-            - MARIADB_USER=$(cat /run/secrets/mysql_user)
-            - MARIADB_PASSWORD=$(cat /run/secrets/mysql_password)
+            - MARIADB_USER_FILE=/run/secrets/mysql_user
+            - MARIADB_PASSWORD_FILE=/run/secrets/mysql_password
         volumes:
             - /home/bitnami/scripts:/opt/bitnami/scripts:ro
+            - /home/bitnami/mariadb/data:/bitnami/mariadb/data:rw
             - /home/bitnami/mariadb/conf:/opt/bitnami/mariadb/conf:rw
             - /home/bitnami/mariadb/logs:/opt/bitnami/mariadb/logs:rw
-            - /home/bitnami/database:/bitnami/mariadb:rw
+            - dblib:/opt/bitnami/mariadb/lib:rw
+            - dbtmp:/opt/bitnami/mariadb/tmp:rw
         healthcheck:
             test: ["CMD", "exec", "/opt/bitnami/scripts/mariadb/healthcheck.sh"]   # ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 --user="$(cat /run/secrets/mysql_user)" --password="$(cat /run/secrets/mysql_password)" --silent']
             interval: 3s
             retries: 5
             start_period: 30s
         restart: always
+    phpmyqdmin:
+        container_name: phpmyqdmin
+        image: docker.io/bitnami/phpmyadmin:latest
+        privileged: true
+        depends_on:
+            - mariadb
+        ports:
+            - 8180:8080
+            - 8143:8443
+        networks:
+            - mariadb-tier
+        volumes:
+            - /home/bitnami/mariadb/data:/bitnami/mariadb/data:rw
+    # python:
+    #     container_name: python_service # reserved name for cron
+    #     image: docker.io/bitnami/python:latest
+    #     privileged: true
+    #     command: [/app/run.sh]
+    #     volumes:
+    #         - /home/bitnami/app:/app:rw
+    #     restart: always
+    # run.sh
+    #     #!/bin/bash
+    #     python -m venv .venv
+    #     source .venv/bin/activate
+    #     pip install --upgrade pip
+    #     pip list
+    #     python app.py
+    #     deactivate
+    wagtail:
+        container_name: wagtail_service # reserved name for cron
+        image: docker.io/bitnami/python:latest
+        privileged: true
+        depends_on:
+            - mariadb
+        links:
+            - mariadb
+        command: [/app/run.sh]
+        ports:
+            - 8000:8000
+        networks:
+            - mariadb-tier
+        secrets:
+            - mysql_user
+            - mysql_password
+        environment:
+            - DYLD_LIBRARY_PATH=/usr/local/mysql/lib
+        volumes:
+            - /home/bitnami/app/pergola.ru:/app:rw
+            - /home/bitnami/mariadb/conf:/etc/mysql:ro
+            - dblib:/usr/local/mysql/lib:ro
+            - dbtmp:/run/mysqld:ro
+        restart: always
+    # run.sh
+    #     #!/bin/bash
+    #     python -m venv .venv
+    #     source .venv/bin/activate
+    #     pip install --upgrade pip
+    #     pip install wagtail
+    #     pip install mysqlclient
+    #     pip list
+    #     wagtail start mysite
+    #     python mysite/manage.py makemigrations
+    #     python mysite/manage.py migrate
+    #     pythom mysite/manage.py runserver 0.0.0.0:8000 
+    #     deactivate
 secrets:
     mysql_root_password:
         file: ./mysql_root_password.txt
@@ -62,3 +129,8 @@ secrets:
         file: ./mysql_user.txt
     mysql_password:
         file: ./mysql_password.txt
+networks:
+    mariadb-tier:
+volumes:
+    dbtmp:
+    dblib:
