@@ -1,7 +1,7 @@
 #!/bin/bash
-#apt-get -y update
-#apt-get install -y python-dev
-#apt-get install -y libmariadbclient-dev-compat # important need for mysqlclient!!!
+apt-get -y update
+apt-get install -y python-dev
+apt-get install -y libmariadbclient-dev-compat # important need for mysqlclient!!!
 #python -m venv .venv
 source .venv/bin/activate
 #pip install --upgrade pip
