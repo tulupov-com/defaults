@@ -19,7 +19,7 @@ services:
     environment:
       DB_MYSQL_HOST: "db"
       DB_MYSQL_PORT: 3306
-      DB_MYSQL_NAME_FILE: /run/secrets/mysql_user
+      DB_MYSQL_NAME: "npm"
       DB_MYSQL_USER_FILE: /run/secrets/mysql_user
       DB_MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
       # Uncomment this if IPv6 is not enabled on your host
@@ -41,23 +41,24 @@ services:
       - mysql_password
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
-      MYSQL_DATABASE_FILE: /run/secrets/mysql_user
+      MYSQL_DATABASE: "npm"
       MYSQL_USER_FILE: /run/secrets/mysql_user
       MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
     volumes:
       - ./db:/var/lib/mysql:z
-  phpmyqdmin:
-    container_name: nginx_proxy_phpmyadmin
-    image: 'docker.io/library/phpmyadmin:latest'
-    ports:
-      - 8180:8080
-      - 8143:8443
-    networks:
-      - nginx_proxy
-    volumes:
-      - ./db:/data:rw
-    depends_on:
-      - db
+  # phpmyqdmin: # not worked and with oficial image too
+  #   container_name: nginx_proxy_phpmyadmin
+  #   image: 'docker.io/bitnami/phpmyadmin:latest'
+  #   privileged: true
+  #   ports:
+  #     - 8180:8080
+  #     - 8143:8443
+  #   networks:
+  #     - nginx_proxy
+  #   volumes:
+  #     - ./db:/var/lib/mysql:z
+  #   depends_on:
+  #     - db
 secrets:
   mysql_root_password:
     file: ./mysql_root_password.txt
