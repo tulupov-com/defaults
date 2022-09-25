@@ -1,0 +1,81 @@
+version: "3"
+services:
+  wagtail:
+    container_name: pergola.ru_wagtail # reserved name for cron
+    image: docker.io/bitnami/python:latest
+    privileged: true
+    depends_on:
+      - mariadb
+    links:
+      - mariadb
+    command: [/app/run.sh]
+    ports:
+      - 8100:8000
+    networks:
+      - pergola-ru
+    secrets:
+      - mysql_user
+      - mysql_password
+    volumes:
+      - ./app:/app:rw
+      - ./conf:/etc/mysql:ro
+    restart: always
+    # run.sh
+    #   #!/bin/bash
+    #   python -m venv .venv
+    #   source .venv/bin/activate
+    #   pip install --upgrade pip
+    #   pip install wagtail
+    #   pip install mysqlclient
+    #   pip list
+    #   wagtail start app
+    #   python app/manage.py makemigrations
+    #   python app/manage.py migrate
+    #   python app/manage.py createsuperuser
+    #   python app/manage.py runserver 0.0.0.0:8000 
+    #   deactivate
+  mariadb:
+    container_name: pergola.ru_mariadb # reserved name for cron
+    image: docker.io/bitnami/mariadb:latest
+    privileged: true
+    command: [/opt/bitnami/scripts/mariadb/run.sh]
+    ports:
+      - 3306:3306
+    networks:
+      - pergola-ru
+    secrets:
+      - mysql_root_password
+      - mysql_user
+      - mysql_password
+    environment:
+      - MARIADB_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password
+      - MARIADB_DATABASE_FILE=/run/secrets/mysql_user
+      - MARIADB_USER_FILE=/run/secrets/mysql_user
+      - MARIADB_PASSWORD_FILE=/run/secrets/mysql_password
+    volumes:
+      - ./scripts:/opt/bitnami/scripts:ro
+      - ./db:/bitnami/mariadb/data:rw
+      - ./conf:/opt/bitnami/mariadb/conf:rw
+      - ./logs:/opt/bitnami/mariadb/logs:rw
+    restart: always
+  phpmyqdmin:
+    container_name: pergola.ru_phpmyqdmin
+    image: docker.io/bitnami/phpmyadmin:latest
+    privileged: true
+    depends_on:
+      - mariadb
+    ports:
+      - 8180:8080
+    networks:
+      - pergola-ru
+    volumes:
+      - ./db:/bitnami/mariadb/data:rw
+secrets:
+  mysql_root_password:
+    file: ./mysql_root_password.txt
+  mysql_user:
+    file: ./mysql_user.txt
+  mysql_password:
+    file: ./mysql_password.txt
+networks:
+  pergola-ru:
